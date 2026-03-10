@@ -123,6 +123,20 @@
             max-height: 200px;
         }
 
+        /* 手機版收合樣式 */
+        @media (max-width: 1023px) {
+            #chat-sidebar {
+                transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            #chat-sidebar.collapsed {
+                height: 56px !important;
+            }
+            #chat-sidebar.collapsed #chat-history, 
+            #chat-sidebar.collapsed #chat-actions-container {
+                display: none !important;
+            }
+        }
+
         /* 優惠券彈窗專屬樣式 */
         #coupon-modal { transition: opacity 0.3s ease; }
         #coupon-canvas { width: 80px; height: 80px; margin: 0 auto 1.25rem; }
@@ -145,7 +159,6 @@
             </div>
 
             <div id="view-list" class="space-y-6 lg:space-y-10 hidden">
-                <!-- 商品網格：統一調整為 grid-cols-3 排列 -->
                 <div id="product-grid" class="grid grid-cols-3 gap-2 lg:gap-6 max-w-full mx-auto"></div>
                 
                 <div id="result-counter-bar" class="bg-white border border-cyan-100 rounded-xl p-3 lg:p-6 text-center shadow-sm max-w-full mx-auto">
@@ -181,7 +194,6 @@
                     </div>
                 </section>
 
-                <!-- LINE 社群區塊 -->
                 <div class="mt-4 mb-10 flex justify-center px-2">
                     <div class="w-full max-w-xl bg-white p-3 lg:p-4 rounded-xl lg:rounded-2xl border border-green-100 flex flex-col sm:flex-row items-center justify-between shadow-sm gap-3">
                         <div class="flex items-center gap-3">
@@ -199,17 +211,24 @@
     </main>
 
     <!-- 對話區域 -->
-    <aside id="chat-sidebar" class="w-full lg:w-[380px] h-[360px] lg:h-full flex flex-col z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] lg:shadow-2xl bg-white border-t lg:border-t-0 lg:border-l border-gray-100 shrink-0">
-        <div class="p-3 lg:p-6 bg-[#024972] text-white shrink-0">
-            <h2 class="text-sm lg:text-xl font-black mb-0.5">AsiaYo 智能顧問</h2>
-            <p class="text-[9px] lg:text-[11px] opacity-80 font-medium">一步步為您鎖定理想旅程</p>
+    <aside id="chat-sidebar" class="w-full lg:w-[380px] h-[400px] lg:h-full flex flex-col z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] lg:shadow-2xl bg-white border-t lg:border-t-0 lg:border-l border-gray-100 shrink-0 relative">
+        <div class="lg:hidden h-2 w-12 bg-gray-200 rounded-full mx-auto mt-2 mb-1 cursor-pointer" onclick="toggleChatSidebar()"></div>
+        
+        <div class="p-3 lg:p-6 bg-[#024972] text-white shrink-0 flex items-center justify-between cursor-pointer lg:cursor-default" onclick="if(window.innerWidth < 1024) toggleChatSidebar()">
+            <div>
+                <h2 class="text-sm lg:text-xl font-black mb-0.5">AsiaYo 智能顧問</h2>
+                <p class="text-[9px] lg:text-[11px] opacity-80 font-medium">一步步為您鎖定理想旅程</p>
+            </div>
+            <button class="lg:hidden text-white/60 p-1" id="chat-toggle-btn">
+                <span id="chat-toggle-icon">▼</span>
+            </button>
         </div>
 
         <!-- 折扣碼置頂 -->
         <div id="pinned-coupon" class="hidden cursor-pointer shrink-0" onclick="togglePinnedCoupon()">
             <div class="p-2 lg:p-3 flex items-center justify-between">
                 <span class="text-[10px] lg:text-[12px] font-bold text-[#827717]">🎁 已領取優惠券：AY2025</span>
-                <span id="pinned-toggle-icon" class="text-gray-400 text-[10px] transition-transform">▼</span>
+                <span id="pinned-toggle-icon-pinned" class="text-gray-400 text-[10px] transition-transform">▼</span>
             </div>
             <div class="px-3 pb-3">
                 <div class="bg-white/60 p-2 lg:p-3 rounded-lg border border-yellow-200/50 flex flex-col gap-2">
@@ -226,7 +245,7 @@
             <div id="chat-history" class="flex-1 overflow-y-auto"></div>
         </div>
         
-        <div class="p-2 lg:p-6 bg-white border-t border-gray-100 shrink-0">
+        <div class="p-2 lg:p-6 bg-white border-t border-gray-100 shrink-0" id="chat-actions-container">
             <div id="option-search-container" class="mb-2 hidden">
                 <div class="relative">
                     <input type="text" id="option-search-input" placeholder="搜尋標籤..." class="w-full pl-7 pr-4 py-1 text-[10px] lg:text-xs border border-gray-200 rounded-full focus:outline-none">
@@ -299,6 +318,7 @@
         let usedFields = new Set();
         let currentStepKey = '';
         let isCouponClaimed = false;
+        let hasAutoPopupShown = false; // 新增：追蹤自動彈窗是否已顯示過
 
         const SPLIT_REGEX = /[|．/]/;
 
@@ -344,8 +364,6 @@
         function createCardNode(p) {
             const div = document.createElement('a'); div.href = p.url; div.target = "_blank"; div.className = "product-card block";
             const displayMonth = p.month.length > 0 ? p.month.join(',') + '月' : '不限';
-            
-            // 手機版針對 3 欄顯示調降字體與間距
             div.innerHTML = `
                 <div class="relative aspect-[4/3] overflow-hidden">
                     <img src="${p.img}" class="w-full h-full object-cover transition-transform duration-700 hover:scale-110" loading="lazy" onerror="this.src='https://placehold.co/600x400?text=AsiaYo'">
@@ -378,6 +396,14 @@
                     </div>
                 </div>`;
             return div;
+        }
+
+        function toggleChatSidebar() {
+            if (window.innerWidth >= 1024) return;
+            const sidebar = document.getElementById('chat-sidebar');
+            const icon = document.getElementById('chat-toggle-icon');
+            sidebar.classList.toggle('collapsed');
+            icon.innerText = sidebar.classList.contains('collapsed') ? '▲' : '▼';
         }
 
         function startIntroduction() {
@@ -455,28 +481,44 @@
 
         function handleFinalChoice(opt) {
             if (opt.value === "DONE") {
-                addMessage('user', "先看這些"); addMessage('bot', "沒問題！已為您客製化精選行程。祝您有段愉快的旅程！✨");
-                document.getElementById('chat-history').scrollTop = document.getElementById('chat-history').scrollHeight;
-                document.getElementById('chat-options-groups').innerHTML = `<button onclick="openCouponModal()" class="px-8 py-2.5 lg:px-10 lg:py-4 bg-[#FABE00] rounded-full font-black shadow-lg hover:scale-105 transition flex items-center gap-2 text-[12px] lg:text-base">🎁 領取折扣碼</button>`;
-                setTimeout(() => { if (!isCouponClaimed) openCouponModal(); }, 5000);
+                addMessage('user', "先看這些"); 
+                addMessage('bot', "沒問題！已為您客製化挑選精選行程。祝您有段愉快的旅程！✨");
+                document.getElementById('chat-options-groups').innerHTML = '';
+                document.getElementById('chat-actions').classList.add('invisible');
+                
+                // 加快按鈕彈出速度：從 3秒 改為 1.5秒
+                setTimeout(() => {
+                    document.getElementById('chat-actions').classList.remove('invisible');
+                    document.getElementById('chat-options-groups').innerHTML = `<button onclick="openCouponModal()" class="px-8 py-3 lg:px-10 lg:py-4 bg-[#FABE00] rounded-full font-black shadow-lg hover:scale-105 transition flex items-center gap-2 text-[12px] lg:text-base mx-auto">🎁 領取折扣碼</button>`;
+                }, 1500);
+
+                // 領取提醒彈窗同步加速顯示 (若尚未顯示過且未領取)
+                setTimeout(() => { if (!isCouponClaimed && !hasAutoPopupShown) openCouponModal(); }, 4000); 
             } else {
                 addMessage('user', `我想設定「${opt.text}」`); questionFlow['dynamic_'+opt.value] = { msg: `針對「${opt.text}」，您的具體偏好是？`, field: opt.value, isMulti: true, next: 'end' }; runStep('dynamic_'+opt.value);
             }
         }
 
-        function openCouponModal() { document.getElementById('coupon-modal').classList.remove('hidden'); drawCouponIcon(); }
+        function openCouponModal() { 
+            // 如果已經被領取過，就不再彈窗
+            if (isCouponClaimed) return;
+            document.getElementById('coupon-modal').classList.remove('hidden'); 
+            drawCouponIcon(); 
+            hasAutoPopupShown = true; // 標記為已顯示
+        }
 
         function copyCoupon() {
             const code = "AY2025"; const el = document.createElement('textarea'); el.value = code;
             document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
-            isCouponClaimed = true; addMessage('bot', "🎉 折扣碼 <b>AY2025</b> 已複製！結帳時貼上即可現折 $500！");
+            isCouponClaimed = true; 
+            addMessage('bot', "🎉 折扣碼 <b>AY2025</b> 已複製！結帳時貼上即可現折 $500！");
             document.getElementById('pinned-coupon').classList.remove('hidden');
             const btn = document.querySelector('.btn-claim'); const originalText = btn.innerText;
             btn.innerText = "✅ 已複製"; btn.style.backgroundColor = "#4CAF50";
             setTimeout(() => { closeModal(); btn.innerText = originalText; btn.style.backgroundColor = ""; }, 1000);
         }
 
-        function togglePinnedCoupon() { const pinned = document.getElementById('pinned-coupon'); const icon = document.getElementById('pinned-toggle-icon'); pinned.classList.toggle('expanded'); icon.innerText = pinned.classList.contains('expanded') ? '▲' : '▼'; }
+        function togglePinnedCoupon() { const pinned = document.getElementById('pinned-coupon'); const icon = document.getElementById('pinned-toggle-icon-pinned'); pinned.classList.toggle('expanded'); icon.innerText = pinned.classList.contains('expanded') ? '▲' : '▼'; }
 
         function updateWall() {
             const list = getFilteredList(); const matchedIds = new Set(list.map(m => m.id));
@@ -519,7 +561,12 @@
 
         window.onload = () => { 
             init(); 
-            setTimeout(() => { if(!isCouponClaimed && document.getElementById('coupon-modal').classList.contains('hidden')) { openCouponModal(); } }, 30000); 
+            // 30 秒自動彈出邏輯：只顯示一次，且若已領取則不彈出
+            setTimeout(() => { 
+                if(!isCouponClaimed && !hasAutoPopupShown && document.getElementById('coupon-modal').classList.contains('hidden')) { 
+                    openCouponModal(); 
+                } 
+            }, 30000); 
         };
     </script>
 </body>
