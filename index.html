@@ -527,7 +527,7 @@
         function showFinalQuestion() {
             currentStepKey = 'final_step'; addMessage('bot', "好的！關於這次行程還有沒有什麼想法呢？");
             const unused = ALL_FIELDS.filter(f => !usedFields.has(f)); const finalOptions = unused.map(f => ({ text: FIELD_LABELS[f] || f, value: f, field: "internal" }));
-            finalOptions.unshift({ text: "先看這些", value: "DONE", field: "internal" }); renderOptions('final_step', [{ category: "更多偏好", items: finalOptions }]);
+            finalOptions.unshift({ text: "有心儀的行程了！", value: "DONE", field: "internal" }); renderOptions('final_step', [{ category: "更多偏好", items: finalOptions }]);
         }
 
         function handleFinalChoice(opt) {
