@@ -26,7 +26,8 @@
             color: var(--ay-text-dark); 
             font-family: "PingFang TC", "Microsoft JhengHei", sans-serif;
             height: 100dvh;
-            font-size: 16px; /* 整體字體加大 */
+            font-size: 16px;
+            overflow: hidden; /* 防止整體 body 滾動 */
         }
         
         /* 商品卡片 UI */
@@ -51,7 +52,7 @@
         #chat-history {
             display: flex;
             flex-direction: column;
-            gap: 0.4rem; /* 手機版更加緊湊 */
+            gap: 0.5rem;
             padding: 0.75rem;
         }
 
@@ -64,7 +65,7 @@
             max-width: 88%; 
             padding: 0.7rem 0.9rem; 
             border-radius: 1rem; 
-            font-size: 0.9rem; /* 文字加大 */
+            font-size: 0.9rem;
             line-height: 1.5; 
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
             word-wrap: break-word;
@@ -100,7 +101,7 @@
         .btn-option { 
             border: 2px solid var(--ay-brand-blue); color: var(--ay-brand-blue); 
             background: white; border-radius: 9999px; padding: 0.4rem 0.9rem;
-            font-size: 0.85rem; /* 文字加大 */
+            font-size: 0.85rem;
             font-weight: 700; transition: 0.2s;
             white-space: nowrap; flex-shrink: 0;
         }
@@ -131,25 +132,34 @@
             max-height: 160px;
         }
 
-        /* 手機版佈局：高度限制為 1/3 (33.3dvh) */
+        /* 手機版佈局優化 */
         @media (max-width: 1023px) {
             #chat-sidebar {
                 transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-                height: 33.3dvh !important;
-                max-height: 33.3dvh;
+                /* 調整高度為畫面的一半 (50dvh) */
+                height: 50dvh !important;
+                max-height: 50dvh;
             }
             #chat-sidebar.collapsed {
-                height: 52px !important;
+                height: 60px !important;
             }
             #chat-sidebar.collapsed #chat-history, 
             #chat-sidebar.collapsed #chat-actions-container,
-            #chat-sidebar.collapsed #pinned-coupon {
+            #chat-sidebar.collapsed #pinned-coupon,
+            #chat-sidebar.collapsed #chat-options-scroll {
                 display: none !important;
             }
-            /* 針對手機版按鈕位置的 Safe Area 處理 */
+            
+            /* 針對手機版按鈕位置的 Safe Area 處理，增加 padding 以免被導覽條遮擋 */
             #chat-actions-container {
-                padding-bottom: calc(0.3rem + env(safe-area-inset-bottom));
-                padding-top: 0.3rem;
+                padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+                padding-top: 0.5rem;
+                background: white;
+            }
+
+            /* 當對話框收合時，主區域應佔滿剩餘空間 */
+            #chat-sidebar.collapsed ~ main {
+                height: calc(100dvh - 60px);
             }
         }
 
@@ -160,10 +170,10 @@
         .btn-claim { background-color: #37BEE2; color: white; width: 100%; padding: 0.75rem; border-radius: 9999px; font-weight: bold; font-size: 1.1rem; transition: 0.2s; cursor: pointer; }
     </style>
 </head>
-<body class="h-[100dvh] flex flex-col lg:flex-row overflow-hidden">
+<body class="h-[100dvh] flex flex-col lg:flex-row">
 
     <!-- 商品主區域 -->
-    <main class="flex-1 flex flex-col overflow-hidden min-h-0">
+    <main class="flex-1 flex flex-col overflow-hidden min-h-0 order-1 lg:order-none">
         <header class="p-3 lg:px-8 lg:py-5 flex items-center justify-between bg-white border-b border-cyan-50 shrink-0">
             <img src="https://gsimg.asiayo.com/ay-image-upload/1773166320120_logo-slogan_color-vertical@0.5x.png" alt="AsiaYo" class="h-7 lg:h-9">
         </header>
@@ -210,6 +220,7 @@
                     </div>
                 </section>
 
+                <!-- 加入社群區塊 (已加入連結) -->
                 <div class="mt-4 mb-12 flex justify-center px-2">
                     <div class="w-full max-w-xl bg-white p-4 rounded-xl lg:rounded-2xl border border-green-100 flex flex-col sm:flex-row items-center justify-between shadow-sm gap-4">
                         <div class="flex items-center gap-4">
@@ -219,7 +230,7 @@
                                 <p class="text-[11px] lg:text-sm text-gray-400 font-medium">掌握第一手優惠與團友心得！</p>
                             </div>
                         </div>
-                        <button class="bg-[#00B900] text-white text-[11px] lg:text-sm font-black px-5 py-2 rounded-full active:scale-95 transition whitespace-nowrap">立即加入</button>
+                        <a href="https://lihi.cc/Rz0DL" target="_blank" rel="noopener noreferrer" class="bg-[#00B900] text-white text-[11px] lg:text-sm font-black px-5 py-2 rounded-full active:scale-95 transition whitespace-nowrap">立即加入</a>
                     </div>
                 </div>
             </div>
@@ -227,15 +238,16 @@
     </main>
 
     <!-- 對話區域 -->
-    <aside id="chat-sidebar" class="w-full lg:w-[380px] h-[33.3dvh] lg:h-full flex flex-col z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] lg:shadow-2xl bg-white border-t lg:border-t-0 lg:border-l border-gray-100 shrink-0 relative">
-        <div class="lg:hidden h-1.5 w-10 bg-gray-200 rounded-full mx-auto mt-2 mb-0.5 cursor-pointer" onclick="toggleChatSidebar()"></div>
+    <aside id="chat-sidebar" class="w-full lg:w-[400px] h-[50dvh] lg:h-full flex flex-col z-50 shadow-[0_-8px_30px_rgba(0,0,0,0.12)] lg:shadow-2xl bg-white border-t lg:border-t-0 lg:border-l border-gray-100 shrink-0 relative order-2 lg:order-none">
+        <!-- 手機版拖拉條蓋板 -->
+        <div class="lg:hidden h-1.5 w-10 bg-gray-200 rounded-full mx-auto mt-2 mb-1 cursor-pointer" onclick="toggleChatSidebar()"></div>
         
         <div class="p-3 lg:p-6 bg-[#024972] text-white shrink-0 flex items-center justify-between cursor-pointer lg:cursor-default" onclick="if(window.innerWidth < 1024) toggleChatSidebar()">
             <div>
-                <h2 class="text-sm lg:text-xl font-black mb-0.5">AsiaYo 專屬智能顧問</h2>
+                <h2 class="text-sm lg:text-xl font-black mb-0.5">AsiaYo 智能旅遊顧問</h2>
                 <p class="text-[9px] lg:text-[11px] opacity-80 font-medium">一步步鎖定您的夢幻旅程</p>
             </div>
-            <button class="lg:hidden text-white/60 p-1" id="chat-toggle-btn">
+            <button class="lg:hidden text-white/80 p-1" id="chat-toggle-btn">
                 <span id="chat-toggle-icon" class="text-sm">▼</span>
             </button>
         </div>
@@ -243,15 +255,14 @@
         <!-- 折扣碼置頂 -->
         <div id="pinned-coupon" class="hidden cursor-pointer shrink-0" onclick="togglePinnedCoupon()">
             <div class="p-2 lg:p-3 flex items-center justify-between">
-                <span class="text-[11px] lg:text-[13px] font-bold text-[#827717]">🎁 已領取優惠券：AY2025</span>
-                <span id="pinned-toggle-icon-pinned" class="text-gray-400 text-[10px] transition-transform">▼</span>
+                <span class="text-[11px] lg:text-[13px] font-bold text-[#827717]">🎁 專屬優惠：AY2025 (現折 $1,000)</span>
+                <span id="pinned-toggle-icon-pinned" class="text-gray-400 text-[10px]">▼</span>
             </div>
             <div class="px-3 pb-3">
-                <div class="bg-white/60 p-2.5 lg:p-3 rounded-lg border border-yellow-200/50 flex flex-col gap-1.5">
-                    <p class="text-[10px] lg:text-sm text-gray-500 font-medium">現折 $1,000 折扣碼：</p>
+                <div class="bg-white/60 p-2.5 rounded-lg border border-yellow-200/50 flex flex-col gap-1.5">
                     <div class="flex items-center justify-between">
                         <span class="text-base lg:text-xl font-black text-[#37BEE2] tracking-widest">AY2025</span>
-                        <button onclick="event.stopPropagation(); copyCoupon();" class="text-[10px] lg:text-sm bg-[#37BEE2] text-white px-2.5 py-1 rounded-full font-bold">複製</button>
+                        <button onclick="event.stopPropagation(); copyCoupon();" class="text-[10px] lg:text-sm bg-[#37BEE2] text-white px-3 py-1 rounded-full font-bold">複製</button>
                     </div>
                 </div>
             </div>
@@ -261,21 +272,22 @@
             <div id="chat-history" class="flex-1 overflow-y-auto"></div>
         </div>
         
-        <div class="p-2.5 lg:p-6 bg-white border-t border-gray-100 shrink-0" id="chat-actions-container">
+        <div class="p-3 lg:p-6 bg-white border-t border-gray-100 shrink-0" id="chat-actions-container">
             <div id="option-search-container" class="mb-2 hidden">
                 <div class="relative">
-                    <input type="text" id="option-search-input" placeholder="搜尋標籤..." class="w-full pl-7 pr-4 py-1.5 text-[11px] lg:text-sm border border-gray-200 rounded-full focus:outline-none">
-                    <span class="absolute left-2.5 top-1.5 text-gray-400 text-[11px]">🔍</span>
+                    <input type="text" id="option-search-input" placeholder="搜尋標籤..." class="w-full pl-8 pr-4 py-2 text-[11px] lg:text-sm border border-gray-200 rounded-full focus:outline-none focus:border-cyan-300">
+                    <span class="absolute left-3 top-2.5 text-gray-400 text-[11px]">🔍</span>
                 </div>
             </div>
+            
             <div id="chat-options-scroll" class="options-scroll-container">
-                <div id="chat-options-groups" class="flex flex-col gap-1.5 lg:gap-4"></div>
+                <div id="chat-options-groups" class="flex flex-col gap-2 lg:gap-4"></div>
             </div>
             
-            <div id="chat-actions" class="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-gray-50 pt-2 lg:pt-3">
+            <div id="chat-actions" class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-50 pt-3">
                 <div id="back-action-container" class="flex gap-2"></div>
                 <div id="confirm-action-container" class="flex-1 text-center"></div>
-                <button onclick="resetFilters()" class="btn-action-secondary flex items-center gap-1 text-[11px] lg:text-sm">🔄 重新選擇</button>
+                <button onclick="resetFilters()" class="btn-action-secondary flex items-center gap-1 text-[11px] lg:text-sm">🔄 重新開始</button>
             </div>
         </div>
     </aside>
@@ -283,13 +295,12 @@
     <!-- 優惠券彈窗 -->
     <div id="coupon-modal" class="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 hidden px-4">
         <div class="bg-white rounded-[1.5rem] lg:rounded-[2rem] p-6 lg:p-10 max-w-sm w-full text-center shadow-2xl relative">
-            <button onclick="closeModal()" class="absolute top-4 right-4 lg:top-6 lg:right-6 text-gray-400 text-lg lg:text-xl font-light hover:text-gray-600 transition">✕</button>
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 text-lg lg:text-xl font-light hover:text-gray-600 transition">✕</button>
             <canvas id="coupon-canvas"></canvas>
-            <h3 class="text-xl lg:text-2xl font-black text-[#024972] mb-2 lg:mb-3">專屬驚喜優惠！</h3>
-            <p class="text-gray-500 text-[0.9rem] lg:text-base mb-4 lg:mb-6">送您一張跟團限定折扣碼，現折 $1,000！</p>
+            <h3 class="text-xl lg:text-2xl font-black text-[#024972] mb-2">解鎖專屬優惠！</h3>
+            <p class="text-gray-500 text-[0.9rem] lg:text-base mb-6">跟團限定折扣碼，現折 $1,000！</p>
             <div class="coupon-code-box"><span id="coupon-text" class="text-xl lg:text-3xl font-black text-[#37BEE2] tracking-[0.2em]">AY2025</span></div>
-            <button onclick="copyCoupon()" class="btn-claim active:scale-95 transition">複製折扣碼</button>
-            <button onclick="closeModal()" class="mt-4 lg:mt-6 text-[0.9rem] lg:text-base text-gray-400 underline">稍後再說</button>
+            <button onclick="copyCoupon()" class="btn-claim active:scale-95 transition">複製折扣碼並使用</button>
         </div>
     </div>
 
@@ -299,9 +310,9 @@
         const QUESTIONS_URL = `https://docs.google.com/spreadsheets/d/${DOC_ID}/export?format=csv&gid=1589012126`;
 
         const FIELD_LABELS = {
-            "destination": "城市", "price": "預算", "isFormed": "成團狀態",
-            "month": "月份", "airline": "航空公司", "from": "出發地點",
-            "country": "國家", "duration": "行程天數", "theme": "推薦主題"
+            "destination": "具體城市", "price": "預算區間", "isFormed": "成團狀態",
+            "month": "出發月份", "airline": "航空公司", "from": "出發城市",
+            "country": "目的地國家", "duration": "旅行天數", "theme": "推薦主題"
         };
 
         const rawMapping = {
@@ -351,10 +362,7 @@
                 travelData = pData.slice(1).filter(r => (r["產品名稱"] || "").trim() !== "").map(row => {
                     const parseField = (val) => (!val ? [] : String(val).split(/[，,．.|/]/).map(v => v.trim()).filter(v => v));
                     const parseNumField = (val) => { if (!val) return []; return String(val).split(SPLIT_REGEX).map(v => parseInt(String(v).replace(/[^\d]/g, ""))).filter(n => !isNaN(n)); };
-                    
                     const durationStrArr = row["行程天數"] ? String(row["行程天數"]).split(/[，,．.|/]/).map(v => v.trim()).filter(v => v) : [];
-
-                    // 精確解析 Yes 為已成團，No 為即將成團
                     const rawIsFormed = String(row["已成團"]).trim();
                     const isFormed = (rawIsFormed === "Yes" || rawIsFormed.toUpperCase() === "Y" || rawIsFormed.toLowerCase() === "true");
 
@@ -394,7 +402,6 @@
                     <div class="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 lg:p-5 flex items-end">
                         <div class="flex flex-wrap gap-1 items-center">
                              <span class="text-[9px] lg:text-[13px] font-bold text-white bg-white/10 backdrop-blur-md px-1.5 py-0.5 rounded-full border border-white/20 tracking-wide">${p.country[0] || ''}</span>
-                             <!-- 已成團標籤(綠色) / 即將成團標籤(黃色) -->
                              <span class="text-[8px] lg:text-[12px] font-black text-white px-1.5 py-0.5 lg:px-2 lg:py-0.5 rounded-full shadow-sm tracking-wider ${p.isFormed ? 'bg-green-600' : 'bg-[#FABE00]'}">
                                 ${p.isFormed ? '已成團' : '即將成團'}
                              </span>
@@ -457,10 +464,7 @@
                         const processVal = (v) => { 
                             if (v === undefined || v === null) return;
                             let displayV = v;
-                            if (f === "isFormed") {
-                                // 將 true/false 轉換為人類語言按鈕
-                                displayV = v ? "已成團" : "即將成團";
-                            }
+                            if (f === "isFormed") displayV = v ? "已成團" : "即將成團";
                             if (f === "destination" && activeCountries.length > 0) { 
                                 if (activeCountries.includes(DEST_TO_COUNTRY_MAP[v.trim()])) valMap[displayV] = (valMap[displayV] || 0) + 1; 
                             } else valMap[displayV] = (valMap[displayV] || 0) + 1; 
@@ -469,10 +473,7 @@
                     });
                     
                     let sortedItems = Object.entries(valMap).sort((a,b) => b[1] - a[1]);
-                    
-                    if (f === "month") {
-                        sortedItems.sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
-                    }
+                    if (f === "month") sortedItems.sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
 
                     if (sortedItems.length > 0) {
                         groupedOptions.push({
@@ -504,7 +505,7 @@
             if (!groupedData) return;
             groupedData.forEach(group => {
                 const wrapper = document.createElement('div'); const label = document.createElement('div');
-                label.className = "text-[10px] lg:text-[12px] font-bold text-gray-400 mb-0.5 lg:mb-1 pl-1"; label.innerText = `● ${group.category}`;
+                label.className = "text-[10px] lg:text-[12px] font-bold text-gray-400 mb-1 lg:mb-1 pl-1"; label.innerText = `● ${group.category}`;
                 wrapper.appendChild(label); const row = document.createElement('div'); row.className = "group-row";
                 group.items.forEach(o => {
                     const btn = document.createElement('button'); const isSel = selectedValues.some(sv => sv.value === o.value && sv.field === o.field);
@@ -533,16 +534,23 @@
         function handleFinalChoice(opt) {
             if (opt.value === "DONE") {
                 addMessage('user', "有心儀的行程了！"); 
-                addMessage('bot', "已為您挑選最適合的行程！我們旅行中見啦😉✨");
-                document.getElementById('chat-options-groups').innerHTML = '';
-                document.getElementById('chat-actions').classList.add('invisible');
+                addMessage('bot', "已為您挑選最適合的行程！滑一滑商品頁吧～我們旅行中見啦😉✨");
                 
-                setTimeout(() => {
-                    document.getElementById('chat-actions').classList.remove('invisible');
-                    document.getElementById('chat-options-groups').innerHTML = `<button onclick="openCouponModal()" class="px-8 py-2.5 lg:px-10 lg:py-4 bg-[#FABE00] rounded-full font-black shadow-lg hover:scale-105 transition flex items-center gap-2 text-[13px] lg:text-lg mx-auto">🎁 領取折扣碼</button>`;
-                }, 1500);
+                // 顯示領取折扣碼按鈕，但保留底部的功能按鈕區域
+                document.getElementById('chat-options-groups').innerHTML = `<button onclick="openCouponModal()" class="px-8 py-2.5 lg:px-10 lg:py-4 bg-[#FABE00] rounded-full font-black shadow-lg hover:scale-105 transition flex items-center gap-2 text-[13px] lg:text-lg mx-auto">🎁 領取專屬折扣碼</button>`;
+                
+                // 確保底部操作區域 (回上題/重新開始) 依然可見
+                const backContainer = document.getElementById('back-action-container');
+                backContainer.innerHTML = '';
+                if (historyStack.length > 0) {
+                    const b = document.createElement('button');
+                    b.className = "btn-action-secondary";
+                    b.innerText = "⬅️ 回上題";
+                    b.onclick = goBack;
+                    backContainer.appendChild(b);
+                }
 
-                setTimeout(() => { if (!isCouponClaimed && !hasAutoPopupShown) openCouponModal(); }, 4000); 
+                setTimeout(() => { if (!isCouponClaimed && !hasAutoPopupShown) openCouponModal(); }, 3000); 
             } else {
                 addMessage('user', `我想設定「${opt.text}」`); questionFlow['dynamic_'+opt.value] = { msg: `針對「${opt.text}」，您有沒有偏好的？`, field: opt.value, isMulti: true, next: 'end' }; runStep('dynamic_'+opt.value);
             }
@@ -561,9 +569,8 @@
             isCouponClaimed = true; 
             addMessage('bot', "🎉 折扣碼 <b>AY2025</b> 已複製！結帳時貼上即可現折 $1,000！");
             document.getElementById('pinned-coupon').classList.remove('hidden');
-            const btn = document.querySelector('.btn-claim'); const originalText = btn.innerText;
-            btn.innerText = "✅ 已複製"; btn.style.backgroundColor = "#4CAF50";
-            setTimeout(() => { closeModal(); btn.innerText = originalText; btn.style.backgroundColor = ""; }, 1000);
+            const btn = document.querySelector('.btn-claim'); btn.innerText = "✅ 已複製"; btn.style.backgroundColor = "#4CAF50";
+            setTimeout(() => { closeModal(); }, 1000);
         }
 
         function togglePinnedCoupon() { const pinned = document.getElementById('pinned-coupon'); const icon = document.getElementById('pinned-toggle-icon-pinned'); pinned.classList.toggle('expanded'); icon.innerText = pinned.classList.contains('expanded') ? '▲' : '▼'; }
@@ -581,22 +588,9 @@
                     if (fList.length === 0) return true;
                     return fList.some(fObj => {
                         const { field, value } = fObj; const pVals = p[field];
-                        
-                        if (field === "duration") {
-                            const pStrs = Array.isArray(pVals) ? pVals : [String(pVals)];
-                            return pStrs.includes(String(value));
-                        }
-
-                        // 核心修復：精準判斷已成團與即將成團
-                        if (field === "isFormed") {
-                            const valStr = String(value).trim();
-                            // 只要使用者選的是「已成團」相關字眼
-                            const userWantsFormed = (valStr === "已成團" || valStr === "Yes" || valStr === "true" || valStr === "Y");
-                            return p.isFormed === userWantsFormed;
-                        }
-
+                        if (field === "duration") return (Array.isArray(pVals) ? pVals : [String(pVals)]).includes(String(value));
+                        if (field === "isFormed") return p.isFormed === (String(value) === "已成團");
                         if (field === "price") { let uLimit = 0; if (String(value).includes('萬')) uLimit = (parseInt(String(value).replace(/[^\d]/g, "")) || 0) * 10000; else uLimit = parseInt(String(value).replace(/[^\d]/g, "")) || 0; return pVals.some(pv => pv > 0 && pv <= uLimit); }
-                        
                         const pStrVals = Array.isArray(pVals) ? pVals.map(v => String(v).toLowerCase()) : [String(pVals).toLowerCase()]; return pStrVals.includes(String(value).toLowerCase());
                     });
                 });
@@ -619,10 +613,7 @@
         }
         function closeModal() { document.getElementById('coupon-modal').classList.add('hidden'); }
 
-        window.onload = () => { 
-            init(); 
-            setTimeout(() => { if(!isCouponClaimed && !hasAutoPopupShown && document.getElementById('coupon-modal').classList.contains('hidden')) { openCouponModal(); } }, 30000); 
-        };
+        window.onload = () => { init(); };
     </script>
 </body>
 </html>
