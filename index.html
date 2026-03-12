@@ -299,9 +299,9 @@
         const QUESTIONS_URL = `https://docs.google.com/spreadsheets/d/${DOC_ID}/export?format=csv&gid=1589012126`;
 
         const FIELD_LABELS = {
-            "destination": "城市", "price": "預算", "isFormed": "是否成團",
+            "destination": "城市", "price": "預算", "isFormed": "成團狀態",
             "month": "月份", "airline": "航空公司", "from": "出發地點",
-            "country": "國家", "duration": "行程天數", "theme": "熱門主題"
+            "country": "國家", "duration": "行程天數", "theme": "推薦主題"
         };
 
         const rawMapping = {
@@ -352,14 +352,17 @@
                     const parseField = (val) => (!val ? [] : String(val).split(/[，,．.|/]/).map(v => v.trim()).filter(v => v));
                     const parseNumField = (val) => { if (!val) return []; return String(val).split(SPLIT_REGEX).map(v => parseInt(String(v).replace(/[^\d]/g, ""))).filter(n => !isNaN(n)); };
                     
-                    // 行程天數：不要忽略 ~，直接存為字串陣列
                     const durationStrArr = row["行程天數"] ? String(row["行程天數"]).split(/[，,．.|/]/).map(v => v.trim()).filter(v => v) : [];
+
+                    // 精確解析 Yes 為已成團，No 為即將成團
+                    const rawIsFormed = String(row["已成團"]).trim();
+                    const isFormed = (rawIsFormed === "Yes" || rawIsFormed.toUpperCase() === "Y" || rawIsFormed.toLowerCase() === "true");
 
                     return {
                         id: row["產品唯一識別碼"] || Math.random().toString(),
                         name: row["產品名稱"], country: parseField(row["目的地"]), theme: parseField(row["策展主題"]), destination: parseField(row["行程"]), 
                         duration: durationStrArr, price: parseNumField(row["每人價格區間"]),
-                        isFormed: String(row["已成團"]).toUpperCase() === "Y" || String(row["已成團"]).toLowerCase() === "true",
+                        isFormed: isFormed,
                         month: row["出發月份"] ? String(row["出發月份"]).split(/[，,．.|/]/).map(m => m.replace(/\D/g, "")).filter(m => m) : [],
                         airline: parseField(row["航空公司"]), url: row["商品網址"], img: row["產品圖片網址"], from: parseField(row["出發地"])
                     };
@@ -384,13 +387,17 @@
         function createCardNode(p) {
             const div = document.createElement('a'); div.href = p.url; div.target = "_blank"; div.className = "product-card block";
             const displayMonth = p.month.length > 0 ? p.month.join(',') + '月' : '不限';
+            
             div.innerHTML = `
                 <div class="relative aspect-[4/3] overflow-hidden">
                     <img src="${p.img}" class="w-full h-full object-cover transition-transform duration-700 hover:scale-110" loading="lazy" onerror="this.src='https://placehold.co/600x400?text=AsiaYo'">
-                    ${p.isFormed ? '<span class="absolute top-1.5 left-1.5 lg:top-4 lg:left-4 bg-red-600 text-white text-[8px] lg:text-[12px] font-black px-1.5 py-0.5 lg:px-2.5 lg:py-1 rounded-md lg:rounded-lg shadow-lg z-10 tracking-wider">已成團</span>' : ''}
                     <div class="absolute bottom-0 left-0 right-0 h-1/2 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 lg:p-5 flex items-end">
-                        <div class="flex flex-wrap gap-1">
+                        <div class="flex flex-wrap gap-1 items-center">
                              <span class="text-[9px] lg:text-[13px] font-bold text-white bg-white/10 backdrop-blur-md px-1.5 py-0.5 rounded-full border border-white/20 tracking-wide">${p.country[0] || ''}</span>
+                             <!-- 已成團標籤(綠色) / 即將成團標籤(黃色) -->
+                             <span class="text-[8px] lg:text-[12px] font-black text-white px-1.5 py-0.5 lg:px-2 lg:py-0.5 rounded-full shadow-sm tracking-wider ${p.isFormed ? 'bg-green-600' : 'bg-[#FABE00]'}">
+                                ${p.isFormed ? '已成團' : '即將成團'}
+                             </span>
                         </div>
                     </div>
                 </div>
@@ -428,8 +435,8 @@
 
         function startIntroduction() {
             currentStepKey = 'intro_guide';
-            addMessage('bot', "您好！我是您的專屬顧問。請問您已經計劃好何時出發了嗎？");
-            const introOptions = [{ text: "劃好假啦~", value: "goto_row_2", field: "internal" }, { text: "還沒想法耶", value: "goto_row_3", field: "internal" }];
+            addMessage('bot', "您好！我是您的專屬顧問。請問您已經有預計何時出發了嗎？");
+            const introOptions = [{ text: "劃好假啦～", value: "goto_row_2", field: "internal" }, { text: "還沒想法耶", value: "goto_row_3", field: "internal" }];
             renderOptions('intro_guide', [{ category: "規劃起點", items: introOptions }]);
         }
 
@@ -447,13 +454,22 @@
                     const valMap = {};
                     travelData.forEach(p => {
                         const val = p[f];
-                        const processVal = (v) => { if (!v) return; if (f === "destination" && activeCountries.length > 0) { if (activeCountries.includes(DEST_TO_COUNTRY_MAP[v.trim()])) valMap[v] = (valMap[v] || 0) + 1; } else valMap[v] = (valMap[v] || 0) + 1; };
+                        const processVal = (v) => { 
+                            if (v === undefined || v === null) return;
+                            let displayV = v;
+                            if (f === "isFormed") {
+                                // 將 true/false 轉換為人類語言按鈕
+                                displayV = v ? "已成團" : "即將成團";
+                            }
+                            if (f === "destination" && activeCountries.length > 0) { 
+                                if (activeCountries.includes(DEST_TO_COUNTRY_MAP[v.trim()])) valMap[displayV] = (valMap[displayV] || 0) + 1; 
+                            } else valMap[displayV] = (valMap[displayV] || 0) + 1; 
+                        };
                         if (Array.isArray(val)) val.forEach(processVal); else processVal(val);
                     });
                     
                     let sortedItems = Object.entries(valMap).sort((a,b) => b[1] - a[1]);
                     
-                    // 針對月份進行時間排序 (1月 > 2月 > ...)
                     if (f === "month") {
                         sortedItems.sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
                     }
@@ -462,7 +478,7 @@
                         groupedOptions.push({
                             category: FIELD_LABELS[f] || f,
                             items: sortedItems.map(v => ({ 
-                                text: `${v[0]}${f === 'month' ? '月' : ''}`, // 行程天數已包含天字
+                                text: `${v[0]}${f === 'month' ? '月' : ''}`, 
                                 value: String(v[0]), field: f, originalText: String(v[0]) 
                             }))
                         });
@@ -499,7 +515,7 @@
                 wrapper.appendChild(row); groupDiv.appendChild(wrapper);
             });
             if (step && step.isMulti && selectedValues.length > 0) { const c = document.createElement('button'); c.className = "btn-action-primary shadow-lg w-full py-1.5 lg:py-2"; c.innerText = "確認選擇 ➔"; c.onclick = () => confirmMulti(key); confirmContainer.appendChild(c); }
-            if (historyStack.length > 0) { const b = document.createElement('button'); b.className = "btn-action-secondary"; b.innerText = "⬅️ 回上一題"; b.onclick = goBack; backContainer.appendChild(b); }
+            if (historyStack.length > 0) { const b = document.createElement('button'); b.className = "btn-action-secondary"; b.innerText = "⬅️ 回上題"; b.onclick = goBack; backContainer.appendChild(b); }
         }
 
         function selectSingle(key, opt) { const oldFilters = JSON.parse(JSON.stringify(filters)); const step = questionFlow[key]; filters[key] = (opt.value !== "SKIP") ? [{ field: opt.field, value: opt.value }] : []; addMessage('user', opt.text); historyStack.push({ key: key, filters: oldFilters }); const count = updateWall(); if (count === 0) showZeroResultDialog(); else if (step.next === 'end') showFinalQuestion(); else setTimeout(() => runStep(step.next), 400); }
@@ -509,19 +525,18 @@
         function handleZeroResultChoice(opt) { if (opt.value === "BACK") goBack(); else resetFilters(); }
 
         function showFinalQuestion() {
-            currentStepKey = 'final_step'; addMessage('bot', "還選擇障礙嗎？以下這些也可以幫助你找到最合適的旅程唷～");
+            currentStepKey = 'final_step'; addMessage('bot', "好的！關於這次行程還有沒有什麼想法呢？");
             const unused = ALL_FIELDS.filter(f => !usedFields.has(f)); const finalOptions = unused.map(f => ({ text: FIELD_LABELS[f] || f, value: f, field: "internal" }));
-            finalOptions.unshift({ text: "我找到心儀的行程了！", value: "DONE", field: "internal" }); renderOptions('final_step', [{ category: "更多偏好", items: finalOptions }]);
+            finalOptions.unshift({ text: "先看這些", value: "DONE", field: "internal" }); renderOptions('final_step', [{ category: "更多偏好", items: finalOptions }]);
         }
 
         function handleFinalChoice(opt) {
             if (opt.value === "DONE") {
-                addMessage('user', "我找到心儀的行程了！"); 
-                addMessage('bot', "已為您挑選最適合的行程！滑一滑行程列表吧～我們旅行見唷😉");
+                addMessage('user', "有心儀的行程了！"); 
+                addMessage('bot', "已為您挑選最適合的行程！我們旅行中見啦😉✨");
                 document.getElementById('chat-options-groups').innerHTML = '';
                 document.getElementById('chat-actions').classList.add('invisible');
                 
-                // 加快到 1.5 秒彈出按鈕
                 setTimeout(() => {
                     document.getElementById('chat-actions').classList.remove('invisible');
                     document.getElementById('chat-options-groups').innerHTML = `<button onclick="openCouponModal()" class="px-8 py-2.5 lg:px-10 lg:py-4 bg-[#FABE00] rounded-full font-black shadow-lg hover:scale-105 transition flex items-center gap-2 text-[13px] lg:text-lg mx-auto">🎁 領取折扣碼</button>`;
@@ -529,7 +544,7 @@
 
                 setTimeout(() => { if (!isCouponClaimed && !hasAutoPopupShown) openCouponModal(); }, 4000); 
             } else {
-                addMessage('user', `我想設定「${opt.text}」`); questionFlow['dynamic_'+opt.value] = { msg: `針對「${opt.text}」，您的具體偏好是？`, field: opt.value, isMulti: true, next: 'end' }; runStep('dynamic_'+opt.value);
+                addMessage('user', `我想設定「${opt.text}」`); questionFlow['dynamic_'+opt.value] = { msg: `針對「${opt.text}」，您有沒有偏好的？`, field: opt.value, isMulti: true, next: 'end' }; runStep('dynamic_'+opt.value);
             }
         }
 
@@ -544,7 +559,7 @@
             const code = "AY2025"; const el = document.createElement('textarea'); el.value = code;
             document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
             isCouponClaimed = true; 
-            addMessage('bot', "🎉 折扣碼 <b>AY2025</b> 已複製！結帳時貼上即可現折 $500！");
+            addMessage('bot', "🎉 折扣碼 <b>AY2025</b> 已複製！結帳時貼上即可現折 $1,000！");
             document.getElementById('pinned-coupon').classList.remove('hidden');
             const btn = document.querySelector('.btn-claim'); const originalText = btn.innerText;
             btn.innerText = "✅ 已複製"; btn.style.backgroundColor = "#4CAF50";
@@ -567,14 +582,21 @@
                     return fList.some(fObj => {
                         const { field, value } = fObj; const pVals = p[field];
                         
-                        // 天數篩選：改為直接字串比對，不忽略 ~
                         if (field === "duration") {
                             const pStrs = Array.isArray(pVals) ? pVals : [String(pVals)];
                             return pStrs.includes(String(value));
                         }
 
+                        // 核心修復：精準判斷已成團與即將成團
+                        if (field === "isFormed") {
+                            const valStr = String(value).trim();
+                            // 只要使用者選的是「已成團」相關字眼
+                            const userWantsFormed = (valStr === "已成團" || valStr === "Yes" || valStr === "true" || valStr === "Y");
+                            return p.isFormed === userWantsFormed;
+                        }
+
                         if (field === "price") { let uLimit = 0; if (String(value).includes('萬')) uLimit = (parseInt(String(value).replace(/[^\d]/g, "")) || 0) * 10000; else uLimit = parseInt(String(value).replace(/[^\d]/g, "")) || 0; return pVals.some(pv => pv > 0 && pv <= uLimit); }
-                        if (field === "isFormed") return p[field] === (String(value).toUpperCase() === "Y" || String(value).toLowerCase() === "true");
+                        
                         const pStrVals = Array.isArray(pVals) ? pVals.map(v => String(v).toLowerCase()) : [String(pVals).toLowerCase()]; return pStrVals.includes(String(value).toLowerCase());
                     });
                 });
@@ -599,7 +621,6 @@
 
         window.onload = () => { 
             init(); 
-            // 30 秒自動彈出邏輯
             setTimeout(() => { if(!isCouponClaimed && !hasAutoPopupShown && document.getElementById('coupon-modal').classList.contains('hidden')) { openCouponModal(); } }, 30000); 
         };
     </script>
